@@ -1,0 +1,112 @@
+# Install CPX using HELM
+# helm install cpx citrix/citrix-cpx-with-ingress-controller --set license.accept=yes,crds.install=true,serviceType.nodePort.enabled=True
+
+# Image Source Microservice of BookRoom Application
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: bookroom-imagesource
+  name: bookroom-imagesource
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bookroom-imagesource
+  template:
+    metadata:
+      labels:
+        app: bookroom-imagesource
+    spec:
+      containers:
+      - image: raghulc/image-server
+        imagePullPolicy: Always
+        name: image-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: bookroom-imagesource
+  name: bookroom-imagesource
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: bookroom-imagesource
+  type: ClusterIP
+---
+# Frontend Microservice of BookRoom Application
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: bookroom-frontend
+  name: bookroom-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bookroom-frontend
+  template:
+    metadata:
+      labels:
+        app: bookroom-frontend
+    spec:
+      containers:
+      - image: raghulc/bookroom-frontend
+        imagePullPolicy: Always
+        name: bookroom-frontend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: bookroom-frontend
+  name: bookroom-frontend
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: bookroom-frontend
+  type: ClusterIP
+---
+# Ingress to expose these microservices - PRIVATE ENDPOINTS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: internal-bookroom-images
+spec:
+  rules:
+  - host: images.bookroom.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: bookroom-imagesource
+            port:
+              number: 8080
+        path: /
+        pathType: Prefix
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: internal-bookroom-frontend
+spec:
+  rules:
+  - host: bookroom.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: bookroom-frontend
+            port:
+              number: 8080
+        path: /
+        pathType: Prefix
+---
